@@ -5,9 +5,21 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ....db.session import SessionLocal
-from ....models.marketplace import Gig, GigApplication
+from ....models.marketplace import Gig, GigApplication, Conversation, Message, Contract, Payment, Payout
+from ....models.portfolio import RatingReview
 from ....models.user import User, UserRole
-from ....schemas.gig import GigOut, GigCreate, GigApplicationCreate, GigApplicationOut
+from ....schemas.gig import (
+    GigOut,
+    GigCreate,
+    GigApplicationCreate,
+    GigApplicationOut,
+    ConversationOut,
+    MessageCreate,
+    MessageOut,
+    ContractCreate,
+    ContractOut,
+    ReleaseContractRequest,
+)
 from .auth import get_current_user
 
 router = APIRouter()
@@ -83,7 +95,13 @@ def create_gig(
 
 @router.get("/", response_model=List[GigOut])
 def list_gigs(db: Session = Depends(get_db)):
-    gigs = db.query(Gig).order_by(Gig.created_at.desc()).all()
+    # Only show gigs that are still open (or with no explicit status yet)
+    gigs = (
+        db.query(Gig)
+        .filter((Gig.status == "OPEN") | (Gig.status.is_(None)))
+        .order_by(Gig.created_at.desc())
+        .all()
+    )
 
     results: List[GigOut] = []
     for gig in gigs:
@@ -120,6 +138,219 @@ def list_gigs(db: Session = Depends(get_db)):
         )
 
     return results
+
+
+@router.get("/conversations/me", response_model=List[ConversationOut])
+def list_my_conversations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    conversations = (
+        db.query(Conversation)
+        .filter(
+            (Conversation.company_id == current_user.id)
+            | (Conversation.student_id == current_user.id)
+        )
+        .order_by(Conversation.created_at.desc())
+        .all()
+    )
+
+    results: List[ConversationOut] = []
+    for conv in conversations:
+        messages_out: List[MessageOut] = []
+        if conv.messages:
+            for m in sorted(conv.messages, key=lambda x: x.created_at):
+                messages_out.append(
+                    MessageOut(
+                        id=m.id,
+                        senderId=m.sender_id,
+                        content=m.content,
+                        createdAt=m.created_at,
+                    )
+                )
+
+        results.append(
+            ConversationOut(
+                id=conv.id,
+                gigId=conv.gig_id,
+                applicationId=conv.application_id,
+                companyId=conv.company_id,
+                studentId=conv.student_id,
+                messages=messages_out,
+            )
+        )
+
+    return results
+
+
+@router.post("/applications/{application_id}/approve", response_model=ConversationOut)
+def approve_application(
+    application_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    application = db.query(GigApplication).filter(GigApplication.id == application_id).first()
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    gig = db.query(Gig).filter(Gig.id == application.gig_id).first()
+    if not gig:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gig not found")
+
+    # Only the owning company (or super admin) can approve applications
+    if gig.company_id != current_user.id and current_user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to approve applications for this opportunity",
+        )
+
+    application.status = "APPROVED"
+
+    conversation = (
+        db.query(Conversation)
+        .filter(Conversation.application_id == application.id)
+        .first()
+    )
+    if not conversation:
+        conversation = Conversation(
+            id=str(uuid.uuid4()),
+            gig_id=gig.id,
+            application_id=application.id,
+            company_id=gig.company_id,
+            student_id=application.student_id,
+        )
+        db.add(conversation)
+
+    db.commit()
+    db.refresh(conversation)
+
+    messages_out: List[MessageOut] = []
+    if conversation.messages:
+        for m in sorted(conversation.messages, key=lambda x: x.created_at):
+            messages_out.append(
+                MessageOut(
+                    id=m.id,
+                    senderId=m.sender_id,
+                    content=m.content,
+                    createdAt=m.created_at,
+                )
+            )
+
+    return ConversationOut(
+        id=conversation.id,
+        gigId=conversation.gig_id,
+        applicationId=conversation.application_id,
+        companyId=conversation.company_id,
+        studentId=conversation.student_id,
+        messages=messages_out,
+    )
+
+
+@router.get("/applications/{application_id}/conversation", response_model=ConversationOut)
+def get_conversation_for_application(
+    application_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    application = db.query(GigApplication).filter(GigApplication.id == application_id).first()
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    gig = db.query(Gig).filter(Gig.id == application.gig_id).first()
+    if not gig:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gig not found")
+
+    # Only company, student or super admin can see the conversation
+    if (
+        gig.company_id != current_user.id
+        and application.student_id != current_user.id
+        and current_user.role != UserRole.SUPER_ADMIN
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to view this conversation",
+        )
+
+    conversation = (
+        db.query(Conversation)
+        .filter(Conversation.application_id == application_id)
+        .first()
+    )
+    if not conversation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+
+    messages_out: List[MessageOut] = []
+    if conversation.messages:
+        for m in sorted(conversation.messages, key=lambda x: x.created_at):
+            messages_out.append(
+                MessageOut(
+                    id=m.id,
+                    senderId=m.sender_id,
+                    content=m.content,
+                    createdAt=m.created_at,
+                )
+            )
+
+    return ConversationOut(
+        id=conversation.id,
+        gigId=conversation.gig_id,
+        applicationId=conversation.application_id,
+        companyId=conversation.company_id,
+        studentId=conversation.student_id,
+        messages=messages_out,
+    )
+
+
+@router.post("/applications/{application_id}/messages", response_model=MessageOut)
+def send_message_for_application(
+    application_id: str,
+    payload: MessageCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    application = db.query(GigApplication).filter(GigApplication.id == application_id).first()
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    gig = db.query(Gig).filter(Gig.id == application.gig_id).first()
+    if not gig:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gig not found")
+
+    # Only company, student or super admin can send messages
+    if (
+        gig.company_id != current_user.id
+        and application.student_id != current_user.id
+        and current_user.role != UserRole.SUPER_ADMIN
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to send messages in this conversation",
+        )
+
+    conversation = (
+        db.query(Conversation)
+        .filter(Conversation.application_id == application_id)
+        .first()
+    )
+    if not conversation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+
+    message = Message(
+        id=str(uuid.uuid4()),
+        conversation_id=conversation.id,
+        sender_id=current_user.id,
+        content=payload.content,
+    )
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    return MessageOut(
+        id=message.id,
+        senderId=message.sender_id,
+        content=message.content,
+        createdAt=message.created_at,
+    )
 
 
 @router.get("/my", response_model=List[GigOut])
@@ -228,6 +459,190 @@ def apply_to_gig(
         proposal=application.proposal,
         status=application.status,
         appliedAt=application.applied_at,
+    )
+
+
+@router.post("/applications/{application_id}/contracts", response_model=ContractOut)
+def create_contract_for_application(
+    application_id: str,
+    payload: ContractCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    application = db.query(GigApplication).filter(GigApplication.id == application_id).first()
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    gig = db.query(Gig).filter(Gig.id == application.gig_id).first()
+    if not gig:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gig not found")
+
+    if gig.company_id != current_user.id and current_user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to create a contract for this opportunity",
+        )
+
+    # One contract per application
+    existing = (
+        db.query(Contract)
+        .filter(Contract.application_id == application.id)
+        .first()
+    )
+    if existing:
+        contract = existing
+    else:
+        contract = Contract(
+            id=str(uuid.uuid4()),
+            gig_id=gig.id,
+            application_id=application.id,
+            agreed_amount=payload.agreedAmount,
+            status="ACTIVE",
+        )
+        db.add(contract)
+
+        # Create a held payment record (simulated escrow)
+        payment = Payment(
+            id=str(uuid.uuid4()),
+            contract_id=contract.id,
+            provider="TALENTIA_ESCROW",
+            reference=f"ESCROW-{contract.id}",
+            amount=payload.agreedAmount,
+            status="HELD",
+        )
+        db.add(payment)
+
+    db.commit()
+    db.refresh(contract)
+
+    return ContractOut(
+        id=contract.id,
+        gigId=contract.gig_id,
+        applicationId=contract.application_id,
+        companyId=gig.company_id,
+        studentId=application.student_id,
+        agreedAmount=contract.agreed_amount,
+        status=contract.status,
+        createdAt=contract.created_at,
+    )
+
+
+@router.get("/applications/{application_id}/contract", response_model=ContractOut | None)
+def get_contract_for_application(
+    application_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    application = db.query(GigApplication).filter(GigApplication.id == application_id).first()
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    gig = db.query(Gig).filter(Gig.id == application.gig_id).first()
+    if not gig:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gig not found")
+
+    if (
+        gig.company_id != current_user.id
+        and application.student_id != current_user.id
+        and current_user.role != UserRole.SUPER_ADMIN
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to view this contract",
+        )
+
+    contract = (
+        db.query(Contract)
+        .filter(Contract.application_id == application_id)
+        .first()
+    )
+    if not contract:
+        return None
+
+    return ContractOut(
+        id=contract.id,
+        gigId=contract.gig_id,
+        applicationId=contract.application_id,
+        companyId=gig.company_id,
+        studentId=application.student_id,
+        agreedAmount=contract.agreed_amount,
+        status=contract.status,
+        createdAt=contract.created_at,
+    )
+
+
+@router.post("/contracts/{contract_id}/release", response_model=ContractOut)
+def release_contract_payment(
+    contract_id: str,
+    payload: ReleaseContractRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    if not contract:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract not found")
+
+    gig = db.query(Gig).filter(Gig.id == contract.gig_id).first()
+    if not gig:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gig not found")
+
+    application = db.query(GigApplication).filter(GigApplication.id == contract.application_id).first()
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    if gig.company_id != current_user.id and current_user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to release this payment",
+        )
+
+    # Mark payment as paid and create payout (simulated transfer)
+    payment = (
+        db.query(Payment)
+        .filter(Payment.contract_id == contract.id)
+        .first()
+    )
+    if payment:
+        payment.status = "PAID"
+
+    payout = Payout(
+        id=str(uuid.uuid4()),
+        user_id=application.student_id,
+        amount=contract.agreed_amount,
+        status="PENDING",
+    )
+    db.add(payout)
+
+    contract.status = "COMPLETED"
+
+    # Mark gig as filled so it no longer appears as an open opportunity
+    if gig.status != "FILLED":
+        gig.status = "FILLED"
+
+    # Optional rating / review
+    if payload.rating is not None:
+        review = RatingReview(
+            id=str(uuid.uuid4()),
+            from_user_id=current_user.id,
+            to_user_id=application.student_id,
+            rating=payload.rating,
+            comment=payload.comment,
+            context="GIG",
+        )
+        db.add(review)
+
+    db.commit()
+    db.refresh(contract)
+
+    return ContractOut(
+        id=contract.id,
+        gigId=contract.gig_id,
+        applicationId=contract.application_id,
+        companyId=gig.company_id,
+        studentId=application.student_id,
+        agreedAmount=contract.agreed_amount,
+        status=contract.status,
+        createdAt=contract.created_at,
     )
 
 

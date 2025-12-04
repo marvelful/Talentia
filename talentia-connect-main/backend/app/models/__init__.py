@@ -23,7 +23,16 @@ from .course import (
     CourseEnrollment,
     CourseCertificate,
 )
-from .marketplace import Gig, GigApplication, Contract, WorkSubmission, Payment, Payout
+from .marketplace import (
+    Gig,
+    GigApplication,
+    Contract,
+    WorkSubmission,
+    Payment,
+    Payout,
+    Conversation,
+    Message,
+)
 from .mentorship import MentorProfile, MentorAvailability, MentorshipSession, MentorshipFeedback
 from .library import LibraryCategory, LibraryResource
 from .analytics import ActivityLog

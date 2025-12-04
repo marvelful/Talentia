@@ -44,6 +44,10 @@ export default function Opportunities() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [applyGig, setApplyGig] = useState<any | null>(null);
   const [proposal, setProposal] = useState("");
+  const [experience, setExperience] = useState("");
+  const [availability, setAvailability] = useState("");
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [appliedGigIds, setAppliedGigIds] = useState<string[]>([]);
 
   const storedUser = typeof window !== "undefined" ? localStorage.getItem("talentia_user") : null;
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
@@ -60,16 +64,38 @@ export default function Opportunities() {
       if (!token) throw new Error("You must be logged in as a student to apply.");
       if (!applyGig) throw new Error("No opportunity selected.");
 
-      return api.marketplace.applyToGig(
+      const sections: string[] = [];
+      if (proposal.trim()) sections.push(proposal.trim());
+      if (experience.trim()) sections.push(`Experience: ${experience.trim()}`);
+      if (availability.trim()) sections.push(`Availability: ${availability.trim()}`);
+      if (portfolioUrl.trim()) sections.push(`Portfolio: ${portfolioUrl.trim()}`);
+
+      const combinedProposal = sections.join("\n\n");
+
+      const res = await api.marketplace.applyToGig(
         applyGig.id,
-        { proposal: proposal || undefined },
+        { proposal: combinedProposal || undefined },
         token,
       );
+
+      // mark this gig as applied in UI as well
+      setAppliedGigIds((prev) => (prev.includes(applyGig.id) ? prev : [...prev, applyGig.id]));
+
+      return res;
     },
     onSuccess: () => {
       setProposal("");
+      setExperience("");
+      setAvailability("");
+      setPortfolioUrl("");
       setApplyGig(null);
       queryClient.invalidateQueries({ queryKey: ["gigs"] });
+    },
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "";
+      if (applyGig && message.includes("already applied")) {
+        setAppliedGigIds((prev) => (prev.includes(applyGig.id) ? prev : [...prev, applyGig.id]));
+      }
     },
   });
 
@@ -250,15 +276,20 @@ export default function Opportunities() {
                           <Button
                             variant="coral"
                             className="group/btn"
+                            disabled={!isStudent || appliedGigIds.includes(opp.id)}
                             onClick={() => {
                               if (!isStudent) {
                                 alert("You must be logged in as a student to apply.");
                                 return;
                               }
+                              if (appliedGigIds.includes(opp.id)) {
+                                alert("You have already applied to this opportunity with this account.");
+                                return;
+                              }
                               setApplyGig(opp);
                             }}
                           >
-                            Apply Now
+                            {appliedGigIds.includes(opp.id) ? "Already Applied" : "Apply Now"}
                             <ArrowUpRight className="w-4 h-4 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
                           </Button>
                         </div>
@@ -335,6 +366,37 @@ export default function Opportunities() {
                 value={proposal}
                 onChange={(e) => setProposal(e.target.value)}
               />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Relevant experience</label>
+                  <input
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground text-sm"
+                    placeholder="e.g. 2 years editing videos for campus events"
+                    value={experience}
+                    onChange={(e) => setExperience(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Availability</label>
+                  <input
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground text-sm"
+                    placeholder="e.g. evenings and weekends, 10h/week"
+                    value={availability}
+                    onChange={(e) => setAvailability(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-foreground">Portfolio or social link</label>
+                <input
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground text-sm"
+                  placeholder="e.g. Behance, YouTube, Instagram, personal site"
+                  value={portfolioUrl}
+                  onChange={(e) => setPortfolioUrl(e.target.value)}
+                />
+              </div>
 
               <div className="flex items-center justify-end gap-3">
                 <Button

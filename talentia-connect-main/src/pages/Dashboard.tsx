@@ -85,13 +85,37 @@ export default function Dashboard() {
   const displayName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Sarah Okonkwo";
   const displayRole = currentUser ? currentUser.role : "STUDENT";
 
+  const getHomeRouteForRole = (role?: string | null) => {
+    if (!role) return "/";
+    if (role === "COMPANY") return "/company-dashboard";
+    if (role === "MENTOR") return "/mentor-dashboard";
+    if (role === "UNIVERSITY_ADMIN") return "/university-dashboard";
+    if (role === "SUPER_ADMIN") return "/admin-dashboard";
+    return "/dashboard";
+  };
+
+  const handleSidebarLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const stored = typeof window !== "undefined" ? localStorage.getItem("talentia_user") : null;
+    if (stored) {
+      try {
+        const user = JSON.parse(stored);
+        navigate(getHomeRouteForRole(user.role));
+        return;
+      } catch {
+        // fall through
+      }
+    }
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 border-r border-border bg-card">
         {/* Logo */}
         <div className="p-6 border-b border-border">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2" onClick={handleSidebarLogoClick}>
             <div className="w-10 h-10 rounded-xl bg-coral flex items-center justify-center">
               <GraduationCap className="w-6 h-6 text-accent-foreground" />
             </div>
@@ -131,7 +155,7 @@ export default function Dashboard() {
             onClick={() => {
               localStorage.removeItem("talentia_token");
               localStorage.removeItem("talentia_user");
-              navigate("/auth");
+              navigate("/");
             }}
           >
             <LogOut className="w-5 h-5" />
@@ -155,11 +179,19 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
-              <Bell className="w-5 h-5 text-muted-foreground" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-coral" />
-            </button>
+            <div className="flex items-center gap-4">
+              <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
+                <Bell className="w-5 h-5 text-muted-foreground" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-coral" />
+              </button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex text-xs"
+                onClick={() => navigate("/messages")}
+              >
+                Messages
+              </Button>
             <div className="flex items-center gap-3">
               <img
                 src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face"

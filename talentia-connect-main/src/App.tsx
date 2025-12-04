@@ -15,6 +15,7 @@ import Training from "./pages/Training";
 import Opportunities from "./pages/Opportunities";
 import Library from "./pages/Library";
 import Mentorship from "./pages/Mentorship";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/ForgotPassword";
 
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/library" element={<Library />} />
           <Route path="/mentorship" element={<Mentorship />} />
+          <Route path="/messages" element={<Messages />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

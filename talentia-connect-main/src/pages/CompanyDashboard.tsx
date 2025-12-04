@@ -11,6 +11,8 @@ export default function CompanyDashboard() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [selectedGig, setSelectedGig] = useState<any | null>(null);
+  const [activeApplication, setActiveApplication] = useState<any | null>(null);
+  const [newMessage, setNewMessage] = useState("");
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -44,6 +46,53 @@ export default function CompanyDashboard() {
       return api.marketplace.listApplications(selectedGig.id, token);
     },
     enabled: !!selectedGig,
+  });
+
+  const { data: activeConversation, isLoading: isLoadingConversation } = useQuery({
+    queryKey: ["application-conversation", activeApplication?.id],
+    queryFn: async () => {
+      if (!activeApplication) return null;
+      const token = localStorage.getItem("talentia_token");
+      if (!token) {
+        throw new Error("You must be logged in as a company to view messages.");
+      }
+      return api.marketplace.getConversationForApplication(activeApplication.id, token);
+    },
+    enabled: !!activeApplication,
+  });
+
+  const approveApplication = useMutation({
+    mutationFn: async (applicationId: string) => {
+      const token = localStorage.getItem("talentia_token");
+      if (!token) {
+        throw new Error("You must be logged in as a company to approve applications.");
+      }
+      return api.marketplace.approveApplication(applicationId, token);
+    },
+    onSuccess: (_data, applicationId) => {
+      queryClient.invalidateQueries({ queryKey: ["gig-applications", selectedGig?.id] });
+      const justApproved = applications.find((a: any) => a.id === applicationId) || null;
+      setActiveApplication(justApproved);
+    },
+  });
+
+  const sendMessage = useMutation({
+    mutationFn: async () => {
+      if (!activeApplication) {
+        throw new Error("No application selected.");
+      }
+      const token = localStorage.getItem("talentia_token");
+      if (!token) {
+        throw new Error("You must be logged in as a company to send messages.");
+      }
+      return api.marketplace.sendMessageForApplication(activeApplication.id, { content: newMessage }, token);
+    },
+    onSuccess: () => {
+      setNewMessage("");
+      if (activeApplication) {
+        queryClient.invalidateQueries({ queryKey: ["application-conversation", activeApplication.id] });
+      }
+    },
   });
 
   const createGig = useMutation({
@@ -95,10 +144,15 @@ export default function CompanyDashboard() {
                 Post opportunities and manage applications from university talent.
               </p>
             </div>
-            <Button variant="coral" size="lg" onClick={() => setShowForm(true)}>
-              <Plus className="w-5 h-5 mr-2" />
-              Post New Opportunity
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => (window.location.href = "/messages")}>
+                Messages
+              </Button>
+              <Button variant="coral" size="lg" onClick={() => setShowForm(true)}>
+                <Plus className="w-5 h-5 mr-2" />
+                Post New Opportunity
+              </Button>
+            </div>
           </div>
 
           {showForm && (
@@ -279,7 +333,11 @@ export default function CompanyDashboard() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setSelectedGig(gig)}
+                      onClick={() => {
+                        setSelectedGig(gig);
+                        setActiveApplication(null);
+                        setNewMessage("");
+                      }}
                       disabled={gig.applicants === 0}
                     >
                       {gig.applicants && gig.applicants > 0 ? "View applications" : "No applications"}
@@ -302,7 +360,15 @@ export default function CompanyDashboard() {
                       Review student proposals and shortlist promising talent.
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedGig(null)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedGig(null);
+                      setActiveApplication(null);
+                      setNewMessage("");
+                    }}
+                  >
                     Close
                   </Button>
                 </div>
@@ -336,8 +402,94 @@ export default function CompanyDashboard() {
                             {app.proposal}
                           </p>
                         )}
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={app.status === "APPROVED" || approveApplication.isPending}
+                              onClick={() => approveApplication.mutate(app.id)}
+                            >
+                              {app.status === "APPROVED"
+                                ? "Approved"
+                                : approveApplication.isPending
+                                ? "Approving..."
+                                : "Approve & Chat"}
+                            </Button>
+                            {app.status === "APPROVED" && (
+                              <Button
+                                size="sm"
+                                variant="coral"
+                                onClick={() => setActiveApplication(app)}
+                              >
+                                Open Chat
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {activeApplication && (
+                  <div className="mt-6 border-t border-border pt-4">
+                    <h3 className="text-sm font-semibold text-foreground mb-2">
+                      Chat with {activeApplication.studentName}
+                    </h3>
+                    {isLoadingConversation ? (
+                      <p className="text-xs text-muted-foreground">Loading messages...</p>
+                    ) : !activeConversation ? (
+                      <p className="text-xs text-muted-foreground">
+                        No messages yet. Start the conversation below.
+                      </p>
+                    ) : (
+                      <div className="mb-3 max-h-56 overflow-y-auto space-y-2 border border-border rounded-md p-3 bg-muted/40">
+                        {activeConversation.messages.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            No messages yet. Be the first to say hello.
+                          </p>
+                        ) : (
+                          activeConversation.messages.map((msg: any) => (
+                            <div key={msg.id} className="text-xs">
+                              <span className="font-semibold text-foreground">
+                                {msg.senderId === activeConversation.companyId ? "You" : activeApplication.studentName}
+                              </span>
+                              <span className="text-muted-foreground">  b7 </span>
+                              <span className="text-muted-foreground">
+                                {new Date(msg.createdAt).toLocaleString()}
+                              </span>
+                              <p className="text-muted-foreground mt-0.5 whitespace-pre-line">
+                                {msg.content}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                    <form
+                      className="flex items-center gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!newMessage.trim()) return;
+                        sendMessage.mutate();
+                      }}
+                    >
+                      <input
+                        className="flex-1 h-9 px-3 rounded-md border border-input bg-background text-foreground text-xs"
+                        placeholder="Write a private message to the student..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                      />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        variant="coral"
+                        disabled={sendMessage.isPending}
+                      >
+                        {sendMessage.isPending ? "Sending..." : "Send"}
+                      </Button>
+                    </form>
                   </div>
                 )}
               </div>

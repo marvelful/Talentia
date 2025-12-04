@@ -29,10 +29,34 @@ export function Navbar() {
   const storedUser = typeof window !== "undefined" ? localStorage.getItem("talentia_user") : null;
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
 
+  const getHomeRouteForRole = (role?: string | null) => {
+    if (!role) return "/";
+    if (role === "COMPANY") return "/company-dashboard";
+    if (role === "MENTOR") return "/mentor-dashboard";
+    if (role === "UNIVERSITY_ADMIN") return "/university-dashboard";
+    if (role === "SUPER_ADMIN") return "/admin-dashboard";
+    return "/dashboard";
+  };
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const stored = typeof window !== "undefined" ? localStorage.getItem("talentia_user") : null;
+    if (stored) {
+      try {
+        const user = JSON.parse(stored);
+        navigate(getHomeRouteForRole(user.role));
+        return;
+      } catch {
+        // fall through to landing page
+      }
+    }
+    navigate("/");
+  };
+
   const handleSignOut = () => {
     localStorage.removeItem("talentia_token");
     localStorage.removeItem("talentia_user");
-    navigate("/auth");
+    navigate("/");
   };
 
   return (
@@ -42,7 +66,7 @@ export function Navbar() {
       <div className="container mx-auto px-4 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
+          <Link to="/" className="flex items-center gap-2 group" onClick={handleLogoClick}>
             <div className="w-10 h-10 rounded-xl bg-coral flex items-center justify-center shadow-md group-hover:shadow-glow transition-shadow duration-300">
               <GraduationCap className="w-6 h-6 text-accent-foreground" />
             </div>

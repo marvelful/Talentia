@@ -60,6 +60,44 @@ export const api = {
         method: "GET",
         auth: token,
       }),
+    approveApplication: (applicationId: string, token: string) =>
+      request<any>(`/gigs/applications/${applicationId}/approve`, {
+        method: "POST",
+        auth: token,
+      }),
+    getConversationForApplication: (applicationId: string, token: string) =>
+      request<any>(`/gigs/applications/${applicationId}/conversation`, {
+        method: "GET",
+        auth: token,
+      }),
+    listMyConversations: (token: string) =>
+      request<any[]>("/gigs/conversations/me", {
+        method: "GET",
+        auth: token,
+      }),
+    createContractForApplication: (applicationId: string, body: unknown, token: string) =>
+      request<any>(`/gigs/applications/${applicationId}/contracts`, {
+        method: "POST",
+        body: JSON.stringify(body),
+        auth: token,
+      }),
+    getContractForApplication: (applicationId: string, token: string) =>
+      request<any | null>(`/gigs/applications/${applicationId}/contract`, {
+        method: "GET",
+        auth: token,
+      }),
+    releaseContract: (contractId: string, body: unknown, token: string) =>
+      request<any>(`/gigs/contracts/${contractId}/release`, {
+        method: "POST",
+        body: JSON.stringify(body),
+        auth: token,
+      }),
+    sendMessageForApplication: (applicationId: string, body: unknown, token: string) =>
+      request<any>(`/gigs/applications/${applicationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify(body),
+        auth: token,
+      }),
   },
   library: {
     listCategories: () => request<any[]>("/library/categories", { method: "GET" }),

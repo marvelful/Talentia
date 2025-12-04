@@ -30,6 +30,46 @@ class GigApplicationOut(BaseModel):
     appliedAt: datetime
 
 
+class MessageCreate(BaseModel):
+    content: str
+
+
+class MessageOut(BaseModel):
+    id: str
+    senderId: str
+    content: str
+    createdAt: datetime
+
+
+class ConversationOut(BaseModel):
+    id: str
+    gigId: str
+    applicationId: str
+    companyId: str
+    studentId: str
+    messages: List[MessageOut] = []
+
+
+class ContractCreate(BaseModel):
+    agreedAmount: float
+
+
+class ContractOut(BaseModel):
+    id: str
+    gigId: str
+    applicationId: str
+    companyId: str
+    studentId: str
+    agreedAmount: float
+    status: str
+    createdAt: datetime
+
+
+class ReleaseContractRequest(BaseModel):
+    rating: Optional[float] = None
+    comment: Optional[str] = None
+
+
 class GigOut(BaseModel):
     id: str
     title: str
