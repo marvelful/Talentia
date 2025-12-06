@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { api } from "@/lib/api";
 import { 
   Search, 
   Filter, 
@@ -31,165 +33,14 @@ const categories = [
   "Brand Design",
 ];
 
-const talents = [
-  {
-    id: 1,
-    name: "Sarah Okonkwo",
-    skill: "UI/UX Designer",
-    university: "University of Lagos",
-    rating: 4.9,
-    reviews: 47,
-    gigs: 28,
-    hourlyRate: "XAF 25",
-    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop&crop=face",
-    portfolio: [
-      "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=200&h=150&fit=crop",
-      "https://images.unsplash.com/photo-1558655146-9f40138edfeb?w=200&h=150&fit=crop",
-    ],
-    verified: true,
-    skills: ["Figma", "Adobe XD", "Prototyping"],
-  },
-  {
-    id: 2,
-    name: "Emmanuel Adebayo",
-    skill: "Video Editor",
-    university: "Covenant University",
-    rating: 4.8,
-    reviews: 62,
-    gigs: 45,
-    hourlyRate: "XAF 30",
-    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&h=300&fit=crop&crop=face",
-    portfolio: [
-      "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=200&h=150&fit=crop",
-      "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=200&h=150&fit=crop",
-    ],
-    verified: true,
-    skills: ["Premiere Pro", "After Effects", "DaVinci"],
-  },
-  {
-    id: 3,
-    name: "Chioma Nwosu",
-    skill: "Brand Designer",
-    university: "University of Nigeria",
-    rating: 5.0,
-    reviews: 38,
-    gigs: 32,
-    hourlyRate: "XAF 35",
-    image: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=300&h=300&fit=crop&crop=face",
-    portfolio: [
-      "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=200&h=150&fit=crop",
-      "https://images.unsplash.com/photo-1634942537034-2531766767d1?w=200&h=150&fit=crop",
-    ],
-    verified: true,
-    skills: ["Illustrator", "Photoshop", "InDesign"],
-  },
-  {
-    id: 4,
-    name: "Tunde Ajayi",
-    skill: "Motion Graphics",
-    university: "Obafemi Awolowo University",
-    rating: 4.7,
-    reviews: 24,
-    gigs: 19,
-    hourlyRate: "XAF 28",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop&crop=face",
-    portfolio: [
-      "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=200&h=150&fit=crop",
-      "https://images.unsplash.com/photo-1617791160505-6f00504e3519?w=200&h=150&fit=crop",
-    ],
-    verified: false,
-    skills: ["After Effects", "Cinema 4D", "Blender"],
-  },
-  {
-    id: 5,
-    name: "Amina Hassan",
-    skill: "Photographer",
-    university: "Ahmadu Bello University",
-    rating: 4.9,
-    reviews: 53,
-    gigs: 41,
-    hourlyRate: "XAF 40",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop&crop=face",
-    portfolio: [
-      "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=200&h=150&fit=crop",
-      "https://images.unsplash.com/photo-1606567595334-d39972c85dfd?w=200&h=150&fit=crop",
-    ],
-    verified: true,
-    skills: ["Portrait", "Product", "Lightroom"],
-  },
-  {
-    id: 6,
-    name: "David Okeke",
-    skill: "Web Developer",
-    university: "University of Benin",
-    rating: 4.8,
-    reviews: 31,
-    gigs: 27,
-    hourlyRate: "XAF 35",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop&crop=face",
-    portfolio: [
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=200&h=150&fit=crop",
-      "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=200&h=150&fit=crop",
-    ],
-    verified: true,
-    skills: ["React", "Node.js", "TypeScript"],
-  },
-  {
-    id: 7,
-    name: "Clarisse Nkwenti",
-    skill: "Afro Dance Performer",
-    university: "University of Buea",
-    rating: 4.9,
-    reviews: 29,
-    gigs: 34,
-    hourlyRate: "XAF 30",
-    image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300&h=300&fit=crop&crop=face",
-    portfolio: [
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=200&h=150&fit=crop",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=200&h=150&fit=crop",
-    ],
-    verified: true,
-    skills: ["Afro dance", "Makossa", "Choreography"],
-  },
-  {
-    id: 8,
-    name: "Junior Talla",
-    skill: "Afrobeats Musician",
-    university: "University of Douala",
-    rating: 4.8,
-    reviews: 22,
-    gigs: 26,
-    hourlyRate: "XAF 32",
-    image: "https://images.unsplash.com/photo-1528892952291-009c663ce843?w=300&h=300&fit=crop&crop=face",
-    portfolio: [
-      "https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=200&h=150&fit=crop",
-      "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=200&h=150&fit=crop",
-    ],
-    verified: true,
-    skills: ["Vocals", "Afrobeats", "Studio recording"],
-  },
-  {
-    id: 9,
-    name: "Mireille Ngassa",
-    skill: "Cultural Event Photographer",
-    university: "University of Yaoundé I",
-    rating: 5.0,
-    reviews: 18,
-    gigs: 21,
-    hourlyRate: "XAF 38",
-    image: "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?w=300&h=300&fit=crop&crop=face",
-    portfolio: [
-      "https://images.unsplash.com/photo-1514846326710-096e4a8035e0?w=200&h=150&fit=crop",
-      "https://images.unsplash.com/photo-1504196606672-aef5c9cefc92?w=200&h=150&fit=crop",
-    ],
-    verified: false,
-    skills: ["Festival coverage", "Portraits", "Lightroom"],
-  },
-];
-
 export default function Marketplace() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
+
+  const { data: talents = [], isLoading } = useQuery({
+    queryKey: ["talents"],
+    queryFn: () => api.talents.list(),
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -267,7 +118,13 @@ export default function Marketplace() {
           {/* Results Count */}
           <div className="flex items-center justify-between mb-6">
             <p className="text-muted-foreground">
-              Showing <span className="font-medium text-foreground">{talents.length}</span> talents
+              {isLoading ? (
+                <span>Loading talents...</span>
+              ) : (
+                <>
+                  Showing <span className="font-medium text-foreground">{talents.length}</span> talents
+                </>
+              )}
             </p>
             <select className="text-sm border-none bg-transparent text-muted-foreground focus:outline-none cursor-pointer">
               <option>Sort by: Best Match</option>
@@ -283,7 +140,12 @@ export default function Marketplace() {
               ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
               : "grid-cols-1"
           }`}>
-            {talents.map((talent, index) => (
+            {(!isLoading && talents.length === 0) && (
+              <p className="text-sm text-muted-foreground">
+                No talents have been rated yet. Complete gigs and leave reviews to see students here.
+              </p>
+            )}
+            {talents.map((talent: any, index: number) => (
               <motion.div
                 key={talent.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -294,18 +156,19 @@ export default function Marketplace() {
                 <div className={`bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${
                   viewMode === "list" ? "flex" : ""
                 }`}>
-                  {/* Portfolio Preview */}
+                  {/* Portfolio Preview (placeholder for now) */}
                   <div className={`${viewMode === "list" ? "w-48 flex-shrink-0" : ""}`}>
                     <div className="grid grid-cols-2 gap-0.5 p-0.5">
-                      {talent.portfolio.map((img, i) => (
-                        <div key={i} className="aspect-[4/3] overflow-hidden">
-                          <img
-                            src={img}
-                            alt=""
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          />
-                        </div>
-                      ))}
+                      <div className="aspect-[4/3] overflow-hidden">
+                        <img
+                          src={talent.avatarUrl}
+                          alt={talent.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      </div>
+                      <div className="aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
+                        <span>{talent.skill || "Top student talent"}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -314,7 +177,7 @@ export default function Marketplace() {
                     <div className="flex items-start gap-3 mb-3">
                       <div className="relative">
                         <img
-                          src={talent.image}
+                          src={talent.avatarUrl}
                           alt={talent.name}
                           className="w-12 h-12 rounded-full object-cover border-2 border-card"
                         />
@@ -333,7 +196,9 @@ export default function Marketplace() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <span className="text-lg font-bold text-foreground">{talent.hourlyRate}</span>
+                        <span className="text-lg font-bold text-foreground">
+                          {talent.hourlyRate ?? "Rate TBD"}
+                        </span>
                         <span className="text-xs text-muted-foreground">/hr</span>
                       </div>
                     </div>
@@ -345,7 +210,7 @@ export default function Marketplace() {
 
                     {/* Skills */}
                     <div className="flex flex-wrap gap-1.5 mb-4">
-                      {talent.skills.map((skill) => (
+                      {(talent.skills || []).map((skill: string) => (
                         <span
                           key={skill}
                           className="px-2 py-1 rounded-md bg-muted text-xs font-medium text-muted-foreground"

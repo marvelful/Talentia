@@ -33,6 +33,135 @@ def get_db():
         db.close()
 
 
+def _ensure_seed_company_and_gigs(db: Session) -> None:
+    """Seed a demo company and a set of creative gigs (singing, dancing, painting...).
+
+    This only runs when there are no gigs yet, so it is safe to call from the
+    listing endpoint without duplicating data.
+    """
+
+    has_gigs = db.query(Gig).first()
+    if has_gigs:
+        return
+
+    # Create a lightweight demo company account to own the seeded gigs.
+    seed_email = "creative-hub@talentia.local"
+    company = db.query(User).filter(User.email == seed_email).first()
+    if not company:
+        company = User(
+            id=str(uuid.uuid4()),
+            email=seed_email,
+            password_hash="SEED_USER_NO_LOGIN",
+            first_name="Creative",
+            last_name="Hub",
+            role=UserRole.COMPANY,
+        )
+        db.add(company)
+        db.flush()  # ensure company.id is available
+
+    gigs = [
+        Gig(
+            id=str(uuid.uuid4()),
+            company_id=company.id,
+            title="Afrobeats Singer for Campus Concert",
+            description="Faith-based youth concert needs a powerful lead singer to perform 3–4 Afrobeats worship songs.",
+            role="Lead Singer",
+            budget_min=50000,
+            budget_max=80000,
+            location="Douala, Cameroon (on-site)",
+            type="Gig",
+            category="Singing",
+        ),
+        Gig(
+            id=str(uuid.uuid4()),
+            company_id=company.id,
+            title="Gospel Choir for Youth Convention",
+            description="University gospel convention looking for a student choir to lead praise & worship sessions.",
+            role="Choir",
+            budget_min=80000,
+            budget_max=120000,
+            location="Yaounde, Cameroon (on-site)",
+            type="Contract",
+            category="Singing",
+        ),
+        Gig(
+            id=str(uuid.uuid4()),
+            company_id=company.id,
+            title="Afro Dance Crew for Cultural Night",
+            description="University cultural night needs an energetic Afro dance crew for a 20–30 minute performance.",
+            role="Dance Crew",
+            budget_min=60000,
+            budget_max=90000,
+            location="Buea, Cameroon (on-site)",
+            type="Gig",
+            category="Dance",
+        ),
+        Gig(
+            id=str(uuid.uuid4()),
+            company_id=company.id,
+            title="Contemporary Dance Performance for Conference Opening",
+            description="Faith and creativity conference opening act – looking for a contemporary dance duo.",
+            role="Dancer",
+            budget_min=70000,
+            budget_max=110000,
+            location="Online rehearsal + Yaounde performance",
+            type="Project",
+            category="Dance",
+        ),
+        Gig(
+            id=str(uuid.uuid4()),
+            company_id=company.id,
+            title="Live Painter for Youth Conference Stage",
+            description="Create a prophetic art piece live on stage during worship sessions.",
+            role="Painter",
+            budget_min=40000,
+            budget_max=70000,
+            location="Douala, Cameroon (on-site)",
+            type="Gig",
+            category="Painting",
+        ),
+        Gig(
+            id=str(uuid.uuid4()),
+            company_id=company.id,
+            title="Mural Artist for Campus Prayer Room",
+            description="Design and paint a mural that reflects hope, unity and excellence in the campus prayer room.",
+            role="Visual Artist",
+            budget_min=90000,
+            budget_max=150000,
+            location="Bamenda, Cameroon (on-site)",
+            type="Project",
+            category="Painting",
+        ),
+        Gig(
+            id=str(uuid.uuid4()),
+            company_id=company.id,
+            title="Spoken Word & Music Set for Youth Sunday",
+            description="Blend spoken word and soft acoustic music for a 10–15 minute youth service piece.",
+            role="Spoken Word Artist",
+            budget_min=30000,
+            budget_max=60000,
+            location="Hybrid (online prep, on-site performance)",
+            type="Gig",
+            category="Music",
+        ),
+        Gig(
+            id=str(uuid.uuid4()),
+            company_id=company.id,
+            title="Cultural Troupe for Inter-university Festival",
+            description="Showcase traditional Cameroonian dance and drumming at an inter-university cultural festival.",
+            role="Cultural Performer",
+            budget_min=100000,
+            budget_max=180000,
+            location="Limbe, Cameroon (on-site)",
+            type="Gig",
+            category="Cultural Performance",
+        ),
+    ]
+
+    db.add_all(gigs)
+    db.commit()
+
+
 @router.post("/", response_model=GigOut, status_code=status.HTTP_201_CREATED)
 def create_gig(
     payload: GigCreate,
@@ -95,6 +224,11 @@ def create_gig(
 
 @router.get("/", response_model=List[GigOut])
 def list_gigs(db: Session = Depends(get_db)):
+    # Seed some creative demo gigs (singing, dancing, painting, etc.) the first
+    # time this endpoint is called so the Opportunities page is not empty in a
+    # fresh environment.
+    _ensure_seed_company_and_gigs(db)
+
     # Only show gigs that are still open (or with no explicit status yet)
     gigs = (
         db.query(Gig)

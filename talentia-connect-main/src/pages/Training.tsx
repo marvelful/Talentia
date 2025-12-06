@@ -20,9 +20,10 @@ import { api } from "@/lib/api";
 const categories = [
   { name: "All Courses", count: 156 },
   { name: "Graphic Design", count: 34 },
+  { name: "Dancing", count: 34 },
   { name: "UI/UX Design", count: 28 },
   { name: "Video Production", count: 22 },
-  { name: "Photography", count: 18 },
+ { name: "Art and Painting", count: 18 },
   { name: "Music & Audio", count: 15 },
   { name: "Writing", count: 20 },
   { name: "Web Development", count: 19 },
@@ -36,6 +37,8 @@ const levelColors = {
   Advanced: "bg-indigo/10 text-indigo",
   "All Levels": "bg-gold/10 text-gold-light",
 };
+
+
 
 export default function Training() {
   const [selectedCategory, setSelectedCategory] = useState("All Courses");

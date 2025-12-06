@@ -227,8 +227,11 @@ export default function Messages() {
                     <div className="border-t border-border px-4 py-2 bg-muted/60 text-[11px] text-muted-foreground">
                       {activeContract.status === "COMPLETED" ? (
                         <span>
-                          Payment for this contract has been <span className="font-semibold text-teal">released</span>.
-                          Your funds will arrive in your Talentia payout account.
+                          The transaction for this contract has been
+                          {" "}
+                          <span className="font-semibold text-teal">validated &amp; payment released</span>.
+                          {" "}
+                          You should now see these funds in your Talentia payout balance.
                         </span>
                       ) : (
                         <span>

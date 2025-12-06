@@ -44,21 +44,21 @@ const opportunities = [
   {
     title: "UI Designer for Mobile App",
     company: "TechStart Inc.",
-    budget: "XAF 500 - XAF 800",
+    budget: "XAF 50000 - XAF 80000",
     deadline: "3 days left",
     tags: ["UI/UX", "Mobile", "Figma"],
   },
   {
-    title: "Brand Identity Package",
-    company: "Fashion Forward",
-    budget: "XAF 300 - XAF 500",
+    title: "Afrobeat dance group",
+    company: "Canal 2 International",
+    budget: "XAF 30000 - XAF 50000",
     deadline: "5 days left",
-    tags: ["Branding", "Logo", "Print"],
+    tags: ["Afrobeat", "Mbole", "pop"],
   },
   {
     title: "Video Editor for Social Media",
     company: "ViralMedia Co.",
-    budget: "XAF 200 - XAF 400",
+    budget: "XAF 20000 - XAF 40000",
     deadline: "7 days left",
     tags: ["Video", "Social Media", "Adobe"],
   },
@@ -194,7 +194,7 @@ export default function Dashboard() {
               </Button>
             <div className="flex items-center gap-3">
               <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face"
+                src="data:image/png;base64,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"
                 alt="Profile"
                 className="w-10 h-10 rounded-full object-cover border-2 border-coral/20"
               />

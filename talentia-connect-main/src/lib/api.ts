@@ -99,6 +99,9 @@ export const api = {
         auth: token,
       }),
   },
+  talents: {
+    list: () => request<any[]>("/talents", { method: "GET" }),
+  },
   library: {
     listCategories: () => request<any[]>("/library/categories", { method: "GET" }),
     listResources: () => request<any[]>("/library/resources", { method: "GET" }),

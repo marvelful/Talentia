@@ -19,11 +19,12 @@ import {
 
 const categories = [
   "All",
-  "Design",
+  "UI Design",
   "Video",
-  "Photography",
+  "Dance",
+  "Singing",
+  "Painting",
   "Writing",
-  "Development",
   "Music",
   "Marketing",
 ];
@@ -37,6 +38,117 @@ const typeColors = {
   Project: "bg-teal/10 text-teal",
   Ongoing: "bg-gold/10 text-gold-light",
 };
+
+// Frontend-only demo opportunities. These are hardcoded and do not exist in the
+// backend database. They help keep the page rich even if the API has no data.
+const hardcodedOpportunities = [
+  {
+    id: "demo-singing-1",
+    title: "Campus Choir Soloist for Graduation Ceremony",
+    type: "Gig",
+    category: "Singing",
+    company: "University Arts Council",
+    companyLogo: "",
+    location: "Yaounde - On-site",
+    description:
+      "Join the university choir to perform a solo and group pieces during the main graduation ceremony.",
+    skills: [
+      "Vocal performance",
+      "Stage presence",
+      "French & English songs",
+    ],
+    budget: "35,000 XAF",
+    deadline: "Due in 7 days",
+    applicants: 12,
+    posted: "2 days ago",
+    isDemo: true,
+  },
+  {
+    id: "demo-dance-1",
+    title: "Afro Fusion Dance Performance for Tech Conference",
+    type: "Gig",
+    category: "Dance",
+    company: "Cameroon Tech Hub",
+    companyLogo: "",
+    location: "Douala - On-site",
+    description:
+      "Perform a short Afro fusion choreography to open and close a regional technology and innovation conference.",
+    skills: ["Afro dance", "Choreography", "Teamwork"],
+    budget: "45,000 XAF",
+    deadline: "Due in 10 days",
+    applicants: 8,
+    posted: "3 days ago",
+    isDemo: true,
+  },
+  {
+    id: "demo-painting-1",
+    title: "Mural Painting for Youth Entrepreneurship Center",
+    type: "Project",
+    category: "Painting",
+    company: "Impact Youth Lab",
+    companyLogo: "",
+    location: "Buea - On-site",
+    description:
+      "Design and paint an inspiring mural highlighting innovation, culture, and entrepreneurship on the center's main wall.",
+    skills: ["Illustration", "Acrylic painting", "Concept design"],
+    budget: "80,000 XAF",
+    deadline: "Due in 3 weeks",
+    applicants: 5,
+    posted: "5 days ago",
+    isDemo: true,
+  },
+  {
+    id: "demo-video-1",
+    title: "Short Documentary on Cameroonian Campus Life",
+    type: "Contract",
+    category: "Video",
+    company: "Student Affairs Office",
+    companyLogo: "",
+    location: "Remote / On-campus",
+    description:
+      "Produce a 5-6 minute mini-documentary capturing daily student life, clubs, and creative projects on campus.",
+    skills: ["Video shooting", "Editing", "Storytelling"],
+    budget: "120,000 XAF",
+    deadline: "Due in 1 month",
+    applicants: 9,
+    posted: "1 week ago",
+    isDemo: true,
+  },
+  {
+    id: "demo-writing-1",
+    title: "Blog Articles on Cameroonian Creative Careers",
+    type: "Ongoing",
+    category: "Writing",
+    company: "Talentia Stories",
+    companyLogo: "",
+    location: "Remote",
+    description:
+      "Write monthly articles profiling young creatives in Cameroon and sharing practical tips for getting paid gigs.",
+    skills: ["Content writing", "Research", "SEO basics"],
+    budget: "15,000 XAF / article",
+    deadline: "Ongoing",
+    applicants: 14,
+    posted: "Ongoing",
+    isDemo: true,
+  },
+  {
+    id: "demo-music-1",
+    title: "Original Jingle for Local Radio Show",
+    type: "Gig",
+    category: "Music",
+    company: "Radio Campus FM",
+    companyLogo: "",
+    location: "Remote",
+    description:
+      "Compose and produce a short audio jingle (10-15 seconds) for a youth-focused radio program.",
+    skills: ["Music production", "Audio mixing", "Branding"],
+    budget: "50,000 XAF",
+    deadline: "Due in 2 weeks",
+    applicants: 6,
+    posted: "4 days ago",
+    isDemo: true,
+  },
+];
 
 export default function Opportunities() {
   const queryClient = useQueryClient();
@@ -57,6 +169,8 @@ export default function Opportunities() {
     queryKey: ["gigs", { category: selectedCategory }],
     queryFn: () => api.marketplace.listGigs(),
   });
+
+  const combinedOpportunities = [...hardcodedOpportunities, ...opportunities];
 
   const applyMutation = useMutation({
     mutationFn: async () => {
@@ -101,8 +215,8 @@ export default function Opportunities() {
 
   const filtered =
     selectedCategory === "All"
-      ? opportunities
-      : opportunities.filter((opp: any) => opp.category === selectedCategory);
+      ? combinedOpportunities
+      : combinedOpportunities.filter((opp: any) => opp.category === selectedCategory);
 
   return (
     <div className="min-h-screen bg-background">
@@ -162,9 +276,13 @@ export default function Opportunities() {
                   <select className="h-12 px-4 pr-10 rounded-xl border border-input bg-background text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring">
                     <option>All Locations</option>
                     <option>Remote</option>
-                    <option>Lagos</option>
-                    <option>Abuja</option>
-                    <option>Port Harcourt</option>
+                    <option>Douala</option>
+                    <option>Yaounde</option>
+                    <option>Buea</option>
+                    <option>Bamenda</option>
+                    <option>Limbe</option>
+                    <option>Ebolowa</option>
+                    
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
                 </div>
@@ -236,11 +354,17 @@ export default function Opportunities() {
                   <div className="flex flex-col lg:flex-row gap-6">
                     {/* Company Logo */}
                     <div className="flex-shrink-0">
-                      <img
-                        src={opp.companyLogo}
-                        alt={opp.company}
-                        className="w-16 h-16 rounded-xl object-cover border border-border"
-                      />
+                      {opp.companyLogo ? (
+                        <img
+                          src={opp.companyLogo}
+                          alt={opp.company}
+                          className="w-16 h-16 rounded-xl object-cover border border-border"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl border border-border bg-muted flex items-center justify-center text-lg font-semibold text-muted-foreground">
+                          {(opp.company || opp.title || "T").charAt(0)}
+                        </div>
+                      )}
                     </div>
 
                     {/* Content */}
@@ -289,7 +413,12 @@ export default function Opportunities() {
                               setApplyGig(opp);
                             }}
                           >
-                            {appliedGigIds.includes(opp.id) ? "Already Applied" : "Apply Now"}
+                            {
+
+                              appliedGigIds.includes(opp.id, opp.isDemo)
+                              ? "Already Applied"
+                              : "Apply Now"}
+                            
                             <ArrowUpRight className="w-4 h-4 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
                           </Button>
                         </div>
